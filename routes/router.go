@@ -17,6 +17,7 @@ func SetupRoutes(app *fiber.App) {
 	auth.Post("/signup", controllers.Signup)
 	auth.Post("/", controllers.Login)
 	auth.Get("/logout", middleware.CheckAuth, controllers.Logout)
+	auth.Post("/get-token", controllers.GetNewAccessToken)
 
 	//User group middleware
 	//user := api.Group("/user")

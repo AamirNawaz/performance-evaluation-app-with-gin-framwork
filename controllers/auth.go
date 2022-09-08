@@ -164,6 +164,41 @@ func Login(c *fiber.Ctx) error {
 
 }
 
+func GetNewAccessToken(c *fiber.Ctx) error {
+	var input map[string]string
+	c.BodyParser(&input)
+
+	err := validation.Validate(input["refresh_token"], validation.Required)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  false,
+			"message": err.Error(),
+		})
+	}
+	//************** Access Token
+	claims := &jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Minute)),
+		Issuer:    "aamirhardcoded",
+	}
+
+	tokenString := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, error := tokenString.SignedString([]byte(os.Getenv("JWT_ACCESS_TOKEN_SECRETE")))
+	if error != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"error":   error.Error(),
+		})
+	}
+
+	a := helper.RedisClient()
+	fmt.Println(a)
+	//val, _ := helper.RedisClient().Get(context.Background(), "key").Result()
+	//fmt.Println(val)
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"access_token": token,
+	})
+
+}
 func Logout(c *fiber.Ctx) error {
 
 	return c.SendString("Logout function calling")
