@@ -1,13 +1,23 @@
 package controllers
 
 import (
+	//go builtin imports
 	"context"
+	"fmt"
+	validation "github.com/go-ozzo/ozzo-validation"
+	"github.com/go-ozzo/ozzo-validation/is"
+	"github.com/golang-jwt/jwt/v4"
+	"go.mongodb.org/mongo-driver/bson"
+	"os"
+	"performance_valuation_app/helper"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
+
+	//App imports
 	"performance_valuation_app/configs"
 	"performance_valuation_app/models"
-	"strings"
-	"time"
 )
 
 func Signup(c *fiber.Ctx) error {
@@ -22,25 +32,27 @@ func Signup(c *fiber.Ctx) error {
 			"error":   err,
 		})
 	}
-	//******************  Validation ***************/
-	if user.Name == "" || strings.TrimSpace(user.Name) == "" {
+
+	//Checking whitespace
+	if helper.TrimWhiteSpace(user.Name) == false || helper.TrimWhiteSpace(user.Email) == false || helper.TrimWhiteSpace(user.Password) == false {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
-			"message": "Name is required",
+			"message": "Field contains whitespaces",
 		})
 	}
 
-	if user.Email == "" || strings.TrimSpace(user.Email) == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"success": false,
-			"message": "Email is required",
-		})
-	}
+	//Multiple fields validation
+	error := validation.Errors{
+		"name":     validation.Validate(user.Name, validation.Required),
+		"email":    validation.Validate(user.Email, validation.Required, is.Email),
+		"password": validation.Validate(user.Password, validation.Required, validation.Length(4, 12)),
+	}.Filter()
 
-	if user.Password == "" || strings.TrimSpace(user.Password) == "" {
+	if error != nil {
+		fmt.Println(error)
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
-			"message": "Password is required",
+			"message": error.Error(),
 		})
 	}
 
@@ -48,12 +60,8 @@ func Signup(c *fiber.Ctx) error {
 	if err != nil {
 		panic(err)
 	}
-
-	// Comparing the password with the hash
-	//err = bcrypt.CompareHashAndPassword(hashedPassword, []byte("aamir"))
-	//fmt.Println("matching password:::::", err)
-
 	user.Password = string(hashedPassword)
+
 	//************ DB Query **********/
 	result, err := userCollection.InsertOne(ctx, user)
 	if err != nil {
@@ -74,15 +82,90 @@ func Signup(c *fiber.Ctx) error {
 
 // Login get user and password
 func Login(c *fiber.Ctx) error {
-	var data map[string]string
-	c.BodyParser(&data)
+	userCollection := configs.MI.DB.Collection("user")
 
-	return c.JSON(fiber.Map{
-		"data": data,
+	var input map[string]string
+	c.BodyParser(&input)
+	var user models.User
+
+	error := validation.Errors{
+		"email":    validation.Validate(input["email"], validation.Required, is.Email),
+		"password": validation.Validate(input["password"], validation.Required, validation.Length(4, 12)),
+	}.Filter()
+
+	if error != nil {
+		fmt.Println(error)
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"message": error.Error(),
+		})
+	}
+
+	result := userCollection.FindOne(context.Background(), bson.M{"email": input["email"]})
+
+	if err := result.Err(); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "User Not found",
+			"error":   err.Error(),
+		})
+	}
+	err := result.Decode(&user)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Error occurred while decoding response",
+			"error":   err.Error(),
+		})
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input["password"]))
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Entered wrong password",
+			//"error":   err.Error(),
+		})
+	}
+
+	//************** Access Token
+	claims := &jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(25 * time.Second)),
+		Issuer:    user.Name,
+	}
+
+	tokenString := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, error := tokenString.SignedString([]byte(os.Getenv("JWT_ACCESS_TOKEN_SECRETE")))
+	if error != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"error":   error.Error(),
+		})
+	}
+
+	//************** Refresh Token
+	refreshTokenString := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+		Issuer:    user.Name,
 	})
+	rToken, error := refreshTokenString.SignedString([]byte(os.Getenv("JWT_REFRESH_TOKEN_SECRETE")))
+	if error != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"error":   error.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"access_token":  token,
+		"refresh_token": rToken,
+		"exp":           claims.ExpiresAt,
+	})
+
 }
 
 func Logout(c *fiber.Ctx) error {
+
 	return c.SendString("Logout function calling")
 
 }

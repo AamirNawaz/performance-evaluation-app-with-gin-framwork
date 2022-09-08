@@ -7,15 +7,18 @@ import (
 	"strings"
 )
 
-func SplitToken(headerToken string) string {
-	parsToken := strings.SplitAfter(headerToken, " ")
-	tokenString := parsToken[1]
-	return tokenString
-}
-
 func CheckAuth(c *fiber.Ctx) error {
-	_, err := jwt.Parse(SplitToken(c.Get("Authorization")), func(token *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("JWT_SECRETE")), nil
+	if c.Get("Authorization") == "" {
+		return c.Status(401).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Token is required",
+		})
+	}
+
+	parsToken := strings.SplitAfter(c.Get("Authorization"), " ")
+
+	_, err := jwt.Parse(parsToken[1], func(token *jwt.Token) (interface{}, error) {
+		return []byte(os.Getenv("JWT_ACCESS_TOKEN_SECRETE")), nil
 	})
 
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"performance_valuation_app/controllers"
+	middleware "performance_valuation_app/middlewares"
 )
 
 func SetupRoutes(app *fiber.App) {
@@ -15,7 +16,7 @@ func SetupRoutes(app *fiber.App) {
 	auth := api.Group("/auth")
 	auth.Post("/signup", controllers.Signup)
 	auth.Post("/", controllers.Login)
-	auth.Get("/logout", controllers.Logout)
+	auth.Get("/logout", middleware.CheckAuth, controllers.Logout)
 
 	//User group middleware
 	//user := api.Group("/user")
