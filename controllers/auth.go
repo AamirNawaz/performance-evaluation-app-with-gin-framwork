@@ -22,7 +22,6 @@ func Signup(c *fiber.Ctx) error {
 			"error":   err,
 		})
 	}
-	
 	//******************  Validation ***************/
 	if user.Name == "" || strings.TrimSpace(user.Name) == "" {
 		return c.Status(400).JSON(fiber.Map{
