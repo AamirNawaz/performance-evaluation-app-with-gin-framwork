@@ -1,6 +1,8 @@
 
-.env
+#.env
 go.mod
 go.sum
 tmp/main.exe
 tmp
+
+.idea
