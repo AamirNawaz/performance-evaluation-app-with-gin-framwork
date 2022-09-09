@@ -3,8 +3,8 @@ package routes
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-	"performance_valuation_app/controllers"
-	middleware "performance_valuation_app/middlewares"
+	"performance-evaluation-app/controllers"
+	middleware "performance-evaluation-app/middlewares"
 )
 
 func SetupRoutes(app *fiber.App) {
