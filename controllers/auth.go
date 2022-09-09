@@ -130,8 +130,9 @@ func Login(c *fiber.Ctx) error {
 
 	//************** Access Token
 	claims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(25 * time.Second)),
 		Issuer:    user.Name,
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(25 * time.Second)),
+		ID:        user.ID.Hex(),
 	}
 
 	tokenString := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -145,14 +146,26 @@ func Login(c *fiber.Ctx) error {
 
 	//************** Refresh Token
 	refreshTokenString := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
 		Issuer:    user.Name,
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+		ID:        user.ID.Hex(),
 	})
 	rToken, error := refreshTokenString.SignedString([]byte(os.Getenv("JWT_REFRESH_TOKEN_SECRETE")))
 	if error != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"success": false,
 			"error":   error.Error(),
+		})
+	}
+
+	//Now storing refresh token in redis cache
+	err = helper.SetExVal("Issuer", user.Name, 12*time.Hour)
+	err = helper.SetExVal("ID", user.ID.Hex(), 12*time.Hour)
+	err = helper.SetExVal("refresh_token", rToken, 12*time.Hour)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"error":   err.Error(),
 		})
 	}
 
@@ -175,10 +188,21 @@ func GetNewAccessToken(c *fiber.Ctx) error {
 			"message": err.Error(),
 		})
 	}
+
+	//validate refresh token with redis if match user is verified and assign new access token
+	if input["refresh_token"] != helper.GetExVal("refresh_token") {
+		return c.Status(401).JSON(fiber.Map{
+			"status":  false,
+			"message": "Invalid refresh token provided",
+		})
+	}
 	//************** Access Token
+	IssuerCache := helper.GetExVal("Issuer")
+	IDCache := helper.GetExVal("ID")
 	claims := &jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Minute)),
-		Issuer:    "aamirhardcoded",
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
+		Issuer:    IssuerCache,
+		ID:        IDCache,
 	}
 
 	tokenString := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -190,10 +214,6 @@ func GetNewAccessToken(c *fiber.Ctx) error {
 		})
 	}
 
-	a := helper.RedisClient()
-	fmt.Println(a)
-	//val, _ := helper.RedisClient().Get(context.Background(), "key").Result()
-	//fmt.Println(val)
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"access_token": token,
 	})

@@ -1,15 +1,13 @@
 package helper
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
+	"time"
 )
 
-type Author struct {
-	Name string `json:"name"`
-	Age  int    `json:"age"`
-}
+var ctx = context.Background()
 
 func RedisClient() *redis.Client {
 
@@ -19,22 +17,21 @@ func RedisClient() *redis.Client {
 		DB:       0,  // use default DB
 	})
 
-	json, err := json.Marshal(Author{Name: "Aamir", Age: 25})
-	if err != nil {
-		fmt.Println(err)
-	}
+	return client
+}
 
-	err = client.Set("id1234", json, 0).Err()
+func SetExVal(key string, val string, exp time.Duration) error {
+	_, err := RedisClient().Set(context.Background(), key, val, exp).Result()
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("inside setVal func", err)
 	}
-
-	val, err := client.Get("id1234").Result()
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Println(val)
-	//return rdb
 	return nil
+}
+
+func GetExVal(key string) string {
+	value, err := RedisClient().Get(context.Background(), key).Result()
+	if err != nil {
+		fmt.Println("inside setVal func", err)
+	}
+	return value
 }
