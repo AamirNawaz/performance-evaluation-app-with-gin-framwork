@@ -130,7 +130,7 @@ func Login(c *fiber.Ctx) error {
 	//************** Access Token
 	claims := &jwt.RegisteredClaims{
 		Issuer:    user.Name,
-		ExpiresAt: jwt.NewNumericDate(time.Now().Add(25 * time.Second)),
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
 		ID:        user.ID.Hex(),
 	}
 

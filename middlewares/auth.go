@@ -26,8 +26,8 @@ func CheckAuth(c *fiber.Ctx) error {
 			"status":  "error",
 			"message": err.Error(),
 		})
-	} else {
-		return nil
 	}
+	c.Next();
+	return nil
 
 }

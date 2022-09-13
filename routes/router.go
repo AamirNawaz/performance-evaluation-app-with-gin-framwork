@@ -21,7 +21,7 @@ func SetupRoutes(app *fiber.App) {
 
 	//User group middleware
 	user := api.Group("/users")
-	user.Get("/", controllers.GetUsers)
+	user.Get("/", middleware.CheckAuth, controllers.GetUsers)
 	user.Get("/:id", controllers.GetUserById)
 	user.Delete("/delete/:id", controllers.DeleteUser)
 	//user.Get("/", middleware.CheckAuth, controllers.GetUsers)
