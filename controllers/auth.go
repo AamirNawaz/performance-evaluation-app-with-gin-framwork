@@ -82,7 +82,7 @@ func Signup(c *fiber.Ctx) error {
 
 // Login get user and password
 func Login(c *fiber.Ctx) error {
-	userCollection := configs.MI.DB.Collection("user")
+	userCollection := configs.MI.DB.Collection("users")
 
 	var input map[string]string
 	c.BodyParser(&input)
