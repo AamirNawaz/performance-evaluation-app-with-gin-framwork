@@ -4,13 +4,15 @@ import (
 	//go builtin imports
 	"context"
 	"fmt"
+	"os"
+	"performance-evaluation-app/helper"
+	"strings"
+	"time"
+
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
 	"github.com/golang-jwt/jwt/v4"
 	"go.mongodb.org/mongo-driver/bson"
-	"os"
-	"performance-evaluation-app/helper"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -32,9 +34,8 @@ func Signup(c *fiber.Ctx) error {
 			"error":   err,
 		})
 	}
-
-	//Checking whitespace
-	if helper.TrimWhiteSpace(user.Name) == false || helper.TrimWhiteSpace(user.Email) == false || helper.TrimWhiteSpace(user.Password) == false {
+	//******************  Validation ***************/
+	if user.Name == "" || strings.TrimSpace(user.Name) == "" {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"message": "Field contains whitespaces",
