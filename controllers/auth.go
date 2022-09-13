@@ -23,9 +23,9 @@ import (
 )
 
 func Signup(c *fiber.Ctx) error {
-	userCollection := configs.MI.DB.Collection("user")
+	userCollection := configs.MI.DB.Collection("users")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	user := new(models.User)
+	user := new(models.Users)
 
 	if err := c.BodyParser(user); err != nil {
 		return c.Status(400).JSON(fiber.Map{
@@ -50,7 +50,6 @@ func Signup(c *fiber.Ctx) error {
 	}.Filter()
 
 	if error != nil {
-		fmt.Println(error)
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"message": error.Error(),
@@ -87,7 +86,7 @@ func Login(c *fiber.Ctx) error {
 
 	var input map[string]string
 	c.BodyParser(&input)
-	var user models.User
+	var user models.Users
 
 	error := validation.Errors{
 		"email":    validation.Validate(input["email"], validation.Required, is.Email),
@@ -95,7 +94,6 @@ func Login(c *fiber.Ctx) error {
 	}.Filter()
 
 	if error != nil {
-		fmt.Println(error)
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
 			"message": error.Error(),
