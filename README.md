@@ -6,12 +6,14 @@ performance evaluation app with golang and gofiber using mongodb
 
 Step1:
 go to the root directory of your project.
+   
     Type cmd :
         go mod init performance_evaluation-app
 
 Step2:
-    Type cmd:
-        go mod tidy
+       
+       Type cmd:
+            go mod tidy
 
 Step3:
 Make sure to run the redis cache on your system.
@@ -23,6 +25,7 @@ Make sure to run the redis cache on your system.
 
 Connect to Redis
 ou can test that your Redis server is running by connecting with the Redis CLI:
+    
     type cmd:
         redis-cli
         127.0.0.1:6379> ping
