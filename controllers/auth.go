@@ -9,15 +9,15 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"go.mongodb.org/mongo-driver/bson"
 	"os"
-	"performance_valuation_app/helper"
+	"performance-evaluation-app/helper"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 
 	//App imports
-	"performance_valuation_app/configs"
-	"performance_valuation_app/models"
+	"performance-evaluation-app/configs"
+	"performance-evaluation-app/models"
 )
 
 func Signup(c *fiber.Ctx) error {
@@ -160,6 +160,7 @@ func Login(c *fiber.Ctx) error {
 
 	//Now storing refresh token in redis cache
 	err = helper.SetExVal("Issuer", user.Name, 12*time.Hour)
+	fmt.Println(err)
 	err = helper.SetExVal("ID", user.ID.Hex(), 12*time.Hour)
 	err = helper.SetExVal("refresh_token", rToken, 12*time.Hour)
 	if err != nil {

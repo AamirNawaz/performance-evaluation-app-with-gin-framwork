@@ -8,8 +8,8 @@ import (
 	"log"
 	"net"
 	"os"
-	db "performance_valuation_app/configs"
-	"performance_valuation_app/routes"
+	db "performance-evaluation-app/configs"
+	"performance-evaluation-app/routes"
 )
 
 func init() {
