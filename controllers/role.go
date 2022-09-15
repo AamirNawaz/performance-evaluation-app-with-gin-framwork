@@ -2,29 +2,31 @@ package controllers
 
 import (
 	"context"
+	"github.com/gin-gonic/gin"
 	validation "github.com/go-ozzo/ozzo-validation"
-	"github.com/gofiber/fiber/v2"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"performance-evaluation-app/configs"
-	"performance-evaluation-app/models"
+	"net/http"
+	"performance-evaluation-app-with-gin/configs"
+	"performance-evaluation-app-with-gin/models"
 	"strconv"
 	"time"
 )
 
-func CreateRole(c *fiber.Ctx) error {
+func CreateRole(c *gin.Context) {
 	roleCollection := configs.MI.DB.Collection("roles")
 	var role models.Roles
-	c.BodyParser(&role)
+	c.ShouldBindJSON(&role)
 
 	//validation
 	error := validation.Validate(role.Name, validation.Required)
 	if error != nil {
-		return c.Status(400).JSON(fiber.Map{
+		c.JSON(http.StatusBadRequest, gin.H{
 			"status":  false,
 			"message": error.Error(),
 		})
+		return
 	}
 
 	role.CreatedAt = time.Now().UTC()
@@ -32,60 +34,68 @@ func CreateRole(c *fiber.Ctx) error {
 
 	result, err := roleCollection.InsertOne(context.Background(), role)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "role creating failed.",
 			"error":   err,
 		})
+		return
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+	c.JSON(http.StatusCreated, gin.H{
 		"data":    result,
 		"status":  "success",
 		"message": "role created successfully",
 	})
-
 }
 
-func UpdateRole(c *fiber.Ctx) error {
+func UpdateRole(c *gin.Context) {
 	roleCollection := configs.MI.DB.Collection("roles")
 
 	var role models.Roles
-	c.BodyParser(&role)
+	err := c.ShouldBindJSON(&role)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
 
 	error := validation.Errors{
-		"roleId": validation.Validate(c.Params("id"), validation.Required),
+		"roleId": validation.Validate(c.Params[0].Value, validation.Required),
 		"name":   validation.Validate(role.Name, validation.Required),
 	}.Filter()
 
 	if error != nil {
-		return c.Status(400).JSON(fiber.Map{
+		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"message": error.Error(),
 		})
+		return
 	}
 
-	roleObjID, err := primitive.ObjectIDFromHex(c.Params("id"))
+	roleObjID, err := primitive.ObjectIDFromHex(c.Params[0].Value)
 	filter := bson.M{"_id": roleObjID}
 	fields := bson.M{"$set": bson.M{"name": role.Name, "updated_at": time.Now()}}
 	result, err := roleCollection.UpdateOne(context.Background(), filter, fields)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		c.JSON(http.StatusInternalServerError, gin.H{
 			"status": true,
 			"error":  err.Error(),
 		})
+		return
 	}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+	c.JSON(http.StatusOK, gin.H{
 		"status":  true,
 		"message": "Role updated successfully",
 		"role":    result,
 	})
 }
 
-func GetRoles(c *fiber.Ctx) error {
+func GetRoles(c *gin.Context) {
 	roleCollection := configs.MI.DB.Collection("roles")
-
 	limit, _ := strconv.Atoi(c.Query("limit"))
 	skip, _ := strconv.Atoi(c.Query("skip"))
 
@@ -94,13 +104,14 @@ func GetRoles(c *fiber.Ctx) error {
 	opt.SetSkip(int64(skip))
 
 	query := bson.M{}
-
 	result, err := roleCollection.Find(context.Background(), query, &opt)
+
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		c.JSON(500, gin.H{
 			"status": false,
 			"error":  err.Error(),
 		})
+		return
 	}
 	defer result.Close(context.Background())
 	var roles []models.Roles
@@ -110,14 +121,14 @@ func GetRoles(c *fiber.Ctx) error {
 		panic(err)
 	}
 
-	return c.Status(200).JSON(fiber.Map{
+	c.JSON(200, gin.H{
 		"status": true,
 		"data":   roles,
 	})
 }
 
-func GetRoleById(c *fiber.Ctx) error {
-	roleId := c.Params("id")
+func GetRoleById(c *gin.Context) {
+	roleId := c.Params[0].Value
 	obId, _ := primitive.ObjectIDFromHex(roleId)
 	query := bson.M{"_id": obId}
 
@@ -125,27 +136,28 @@ func GetRoleById(c *fiber.Ctx) error {
 
 	var result models.Roles
 	userCollection.FindOne(context.Background(), query).Decode(&result)
-	return c.Status(200).JSON(fiber.Map{
+	c.JSON(200, gin.H{
 		"status": true,
 		"data":   result,
 	})
 }
 
-func DeleteRole(c *fiber.Ctx) error {
-	roleId := c.Params("id")
+func DeleteRole(c *gin.Context) {
+	roleId := c.Params[0].Value
 	obId, _ := primitive.ObjectIDFromHex(roleId)
 	query := bson.M{"_id": obId}
 	userCollection := configs.MI.DB.Collection("roles")
 
 	result, err := userCollection.DeleteOne(context.Background(), query)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
+		c.JSON(500, gin.H{
 			"status":  false,
 			"message": err.Error(),
 		})
+		return
 	}
 
-	return c.Status(200).JSON(fiber.Map{
+	c.JSON(200, gin.H{
 		"status":  true,
 		"message": "Role deleted successfully",
 		"data":    result,

@@ -1,38 +1,40 @@
 package routes
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"performance-evaluation-app/controllers"
-	middleware "performance-evaluation-app/middlewares"
+	"github.com/gin-gonic/gin"
+	"performance-evaluation-app-with-gin/controllers"
+	middleware "performance-evaluation-app-with-gin/middlewares"
 )
 
-func SetupRoutes(app *fiber.App) {
+func SetupRoutes(router *gin.Engine) {
 
-	//middleware
-	api := app.Group("/api", logger.New())
+	//Auth Routes
+	auth := router.Group("/api/auth")
+	{
+		auth.POST("/signup", controllers.Signup)
+		auth.POST("/", controllers.Login)
+		auth.POST("/get-token", controllers.GetNewAccessToken)
+		auth.GET("/logout", controllers.Logout())
+	}
 
-	//Auth group middleware
-	auth := api.Group("/auth")
-	auth.Post("/signup", controllers.Signup)
-	auth.Post("/", controllers.Login)
-	auth.Get("/logout", middleware.CheckAuth, controllers.Logout)
-	auth.Post("/get-token", controllers.GetNewAccessToken)
+	//User Routes
+	user := router.Group("/api/users")
+	{
+		user.GET("/", middleware.CheckAuth, controllers.GetUsers)
+		user.GET("/:id", controllers.GetUserById)
+		user.DELETE("/delete/:id", controllers.DeleteUser)
+		user.POST("/assign-role", controllers.AssignRole)
 
-	//User group middleware
-	user := api.Group("/users")
-	user.Get("/", middleware.CheckAuth, controllers.GetUsers)
-	user.Get("/:id", controllers.GetUserById)
-	user.Delete("/delete/:id", controllers.DeleteUser)
-	//user.Get("/", middleware.CheckAuth, controllers.GetUsers)
-	//user.Get("/:id", middlewares.AdminProtected, controllers.GetUser)
+	}
 
-	//*****************Roles Routes*****************/
-	role := api.Group("/role")
-	role.Get("/", controllers.GetRoles)
-	role.Get("/:id", controllers.GetRoleById)
-	role.Post("/create", controllers.CreateRole)
-	role.Put("/update/:id", controllers.UpdateRole)
-	role.Delete("/delete/:id", controllers.DeleteRole)
+	//Roles Routes
+	role := router.Group("/api/role")
+	{
+		role.GET("/", controllers.GetRoles)
+		role.GET("/:id", controllers.GetRoleById)
+		role.POST("/create", controllers.CreateRole)
+		role.PUT("/update/:id", controllers.UpdateRole)
+		role.DELETE("/delete/:id", controllers.DeleteRole)
+	}
 
 }

@@ -1,15 +1,16 @@
 package main
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
-	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/joho/godotenv"
 	"log"
 	"net"
 	"os"
-	db "performance-evaluation-app/configs"
-	"performance-evaluation-app/routes"
+	"performance-evaluation-app-with-gin/routes"
+
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	cors "github.com/rs/cors/wrapper/gin"
+
+	db "performance-evaluation-app-with-gin/configs"
 )
 
 func init() {
@@ -21,24 +22,23 @@ func init() {
 }
 
 func main() {
-	app := fiber.New()
-	app.Use(cors.New())
-	app.Static("/", "./public")
+	r := gin.Default()
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "pong",
+		})
+	})
 
 	//mongo connection
 	db.Connect()
 
-	//Logging middleware
-	app.Use(logger.New(logger.Config{
-		Format: "[${ip}]:${port} ${status} - ${method} ${path}\n",
-	}))
-
-	//Getting host ip
+	// Getting host ip
 	host, _ := os.Hostname()
 	addrs, _ := net.LookupIP(host)
 
-	routes.SetupRoutes(app)
-	err := app.Listen((addrs[1].String()) + ":" + (os.Getenv("PORT")))
+	r.Use(cors.Default())
+	routes.SetupRoutes(r)
+	err := r.Run((addrs[1].String()) + ":" + (os.Getenv("PORT")))
 	if err != nil {
 		log.Fatal(err)
 	}
