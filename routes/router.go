@@ -14,27 +14,34 @@ func SetupRoutes(router *gin.Engine) {
 		auth.POST("/signup", controllers.Signup)
 		auth.POST("/", controllers.Login)
 		auth.POST("/get-token", controllers.GetNewAccessToken)
-		auth.GET("/logout", controllers.Logout())
+		auth.GET("/logout", controllers.Logout)
 	}
 
 	//User Routes
 	user := router.Group("/api/users")
 	{
 		user.GET("/", middleware.CheckAuth, controllers.GetUsers)
-		user.GET("/:id", controllers.GetUserById)
-		user.DELETE("/delete/:id", controllers.DeleteUser)
-		user.POST("/assign-role", controllers.AssignRole)
-
+		user.GET("/:id", middleware.CheckAuth, controllers.GetUserById)
+		user.DELETE("/delete/:id", middleware.CheckAuth, middleware.CheckRole, controllers.DeleteUser)
+		user.POST("/assign-role", middleware.CheckAuth, middleware.CheckRole, controllers.AssignRole)
 	}
 
 	//Roles Routes
 	role := router.Group("/api/role")
 	{
-		role.GET("/", controllers.GetRoles)
-		role.GET("/:id", controllers.GetRoleById)
-		role.POST("/create", controllers.CreateRole)
-		role.PUT("/update/:id", controllers.UpdateRole)
-		role.DELETE("/delete/:id", controllers.DeleteRole)
+		role.GET("/", middleware.CheckAuth, middleware.CheckRole, controllers.GetRoles)
+		role.GET("/:id", middleware.CheckAuth, middleware.CheckRole, controllers.GetRoleById)
+		role.POST("/create", middleware.CheckAuth, middleware.CheckRole, controllers.CreateRole)
+		role.PUT("/update/:id", middleware.CheckAuth, middleware.CheckRole, controllers.UpdateRole)
+		role.DELETE("/delete/:id", middleware.CheckAuth, middleware.CheckRole, controllers.DeleteRole)
+	}
+
+	//Rating routes
+	rating := router.Group("/api/rating")
+	{
+		rating.GET("/", controllers.GetRating)
+		rating.GET("/thumbs-up", controllers.ThumbsUp)
+		rating.GET("/thumbs-down", controllers.ThumbsDown)
 	}
 
 }

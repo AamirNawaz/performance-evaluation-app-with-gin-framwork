@@ -62,6 +62,7 @@ func Signup(c *gin.Context) {
 		})
 
 }
+
 func Login(c *gin.Context) {
 
 	var input map[string]string
@@ -120,11 +121,11 @@ func Login(c *gin.Context) {
 
 	//************** Access Token
 	claims := jwt.MapClaims{}
-	claims["exp"] = jwt.NewNumericDate(time.Now().Add(5 * time.Minute))
+	claims["exp"] = jwt.NewNumericDate(time.Now().Add(1 * time.Minute))
 	claims["issuer"] = user.Name
 	claims["user_id"] = user.ID.Hex()
-	if user.UserrolRole != nil {
-		claims["role_id"] = user.UserrolRole.Hex()
+	if user.UserRole != nil {
+		claims["role_id"] = user.UserRole.Hex()
 	}
 
 	tokenString := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -217,8 +218,6 @@ func GetNewAccessToken(c *gin.Context) {
 
 }
 
-func Logout() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		ctx.String(200, "Testing for logout with gin")
-	}
+func Logout(c *gin.Context) {
+	c.JSON(200, "Logout function")
 }
