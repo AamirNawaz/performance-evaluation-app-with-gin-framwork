@@ -22,8 +22,8 @@ func GetUsers(c *gin.Context) {
 	opt.SetLimit(int64(limit))
 	opt.SetSkip(int64(skip))
 
-	//with projection we can skip specific field to retrive
-	opt.SetProjection(bson.D{{"password", 0}})
+	//with projection, we can skip specific field to retrieve
+	opt.SetProjection(bson.D{{"password", 0}, {"refresh_token", 0}})
 
 	query := bson.M{}
 
@@ -38,7 +38,7 @@ func GetUsers(c *gin.Context) {
 	}
 
 	defer result.Close(context.Background())
-	var users []models.Users
+	var users []models.UsersResponse
 
 	err = result.All(context.TODO(), &users)
 	if err != nil {
@@ -148,4 +148,44 @@ func AssignRole(c *gin.Context) {
 		"message": "Role assigned successfully",
 	})
 
+}
+
+func GetAllDataWithRating(c *gin.Context) {
+	userId := c.Params[0].Value
+	obId, _ := primitive.ObjectIDFromHex(userId)
+	query := bson.M{"_id": obId}
+
+	userCollection := configs.MI.DB.Collection("users")
+
+	var users models.UsersResponse
+	err := userCollection.FindOne(context.Background(), query).Decode(&users)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  true,
+			"message": err.Error(),
+		})
+		return
+	}
+	//fmt.Println(users)
+	//fmt.Println(users.ID)
+
+	var rating models.Rating
+	//userObjId, _ := primitive.ObjectIDFromHex(users.ID)
+	ratingCollection := configs.MI.DB.Collection("rating")
+	err1 := ratingCollection.FindOne(context.Background(), bson.M{"user_id": users.ID}).Decode(&rating)
+	if err1 != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status":  true,
+			"message": err1.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status": true,
+		"data": gin.H{
+			"rating": rating,
+			"user":   users,
+		},
+	})
 }

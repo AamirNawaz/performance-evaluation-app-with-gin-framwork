@@ -20,10 +20,12 @@ func SetupRoutes(router *gin.Engine) {
 	//User Routes
 	user := router.Group("/api/users")
 	{
-		user.GET("/", middleware.CheckAuth, controllers.GetUsers)
+		user.GET("/", controllers.GetUsers)
+		user.GET("/all/:id", controllers.GetAllDataWithRating)
 		user.GET("/:id", middleware.CheckAuth, controllers.GetUserById)
 		user.DELETE("/delete/:id", middleware.CheckAuth, middleware.CheckRole, controllers.DeleteUser)
 		user.POST("/assign-role", middleware.CheckAuth, middleware.CheckRole, controllers.AssignRole)
+
 	}
 
 	//Roles Routes
@@ -40,8 +42,11 @@ func SetupRoutes(router *gin.Engine) {
 	rating := router.Group("/api/rating")
 	{
 		rating.GET("/", controllers.GetRating)
-		rating.GET("/thumbs-up", controllers.ThumbsUp)
-		rating.GET("/thumbs-down", controllers.ThumbsDown)
+		rating.POST("/thumbs-up", controllers.ThumbUp)
+		rating.POST("/thumbs-down", controllers.ThumbDown)
+		rating.GET("/positive-rating", controllers.GetPositiveRating)
+		rating.GET("/negative-rating", controllers.GetNegativeRating)
+
 	}
 
 }

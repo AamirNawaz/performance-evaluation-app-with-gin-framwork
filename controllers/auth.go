@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	validation "github.com/go-ozzo/ozzo-validation"
 	"github.com/go-ozzo/ozzo-validation/is"
@@ -151,17 +150,32 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	//Now storing refresh token in redis cache
-	err = helper.SetExVal("Issuer", user.Name, 12*time.Hour)
-	fmt.Println(err)
-	err = helper.SetExVal("ID", user.ID.Hex(), 12*time.Hour)
-	err = helper.SetExVal("refresh_token", rToken, 12*time.Hour)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   err.Error(),
-		})
-		return
+	if os.Getenv("IS_REDIS_CACHE_ENABLED") == "true" {
+		//Now storing refresh token in redis cache
+		err = helper.SetExVal("Issuer", user.Name, 12*time.Hour)
+		err = helper.SetExVal("ID", user.ID.Hex(), 12*time.Hour)
+		err = helper.SetExVal("refresh_token", rToken, 12*time.Hour)
+
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"error":   err.Error(),
+			})
+			return
+		}
+	} else {
+		//db to store refresh token
+		filter := bson.M{"_id": user.ID}
+		fields := bson.M{"$set": bson.M{"refresh_token": rToken, "updated_at": time.Now()}}
+		_, err := userCollection.UpdateOne(context.Background(), filter, fields)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status":  "error",
+				"message": "Failed to updated refresh token in db",
+				"error":   err.Error(),
+			})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -173,6 +187,7 @@ func Login(c *gin.Context) {
 }
 
 func GetNewAccessToken(c *gin.Context) {
+	var user models.Users
 	var input map[string]string
 	c.ShouldBindJSON(&input)
 
@@ -185,17 +200,50 @@ func GetNewAccessToken(c *gin.Context) {
 		return
 	}
 
-	//validate refresh token with redis if match user is verified and assign new access token
-	if input["refresh_token"] != helper.GetExVal("refresh_token") {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"status":  false,
-			"message": "Invalid refresh token provided",
-		})
-		return
+	var IssuerCache = ""
+	var IDCache = ""
+	if os.Getenv("IS_REDIS_CACHE_ENABLED") == "true" {
+		//validate refresh token with redis if match user is verified and assign new access token
+		if input["refresh_token"] != helper.GetExVal("refresh_token") {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status":  false,
+				"message": "Invalid refresh token provided",
+			})
+			return
+		}
+
+		//************** Access Token
+		IssuerCache = helper.GetExVal("Issuer")
+		IDCache = helper.GetExVal("ID")
+
+	} else {
+		userCollection := configs.MI.DB.Collection("users")
+		result := userCollection.FindOne(context.Background(), bson.M{"refresh_token": input["refresh_token"]})
+
+		if err := result.Err(); err != nil {
+			c.JSON(404, gin.H{
+				"success": false,
+				"message": "User Not found",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		result.Decode(&user)
+		if input["refresh_token"] != user.RefreshToken {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"status":  false,
+				"message": "Invalid refresh token provided",
+			})
+			return
+		}
+
+		//************** Access Token
+		IssuerCache = user.Name
+		IDCache = user.ID.Hex()
+
 	}
-	//************** Access Token
-	IssuerCache := helper.GetExVal("Issuer")
-	IDCache := helper.GetExVal("ID")
+
 	claims := &jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(1 * time.Hour)),
 		Issuer:    IssuerCache,
